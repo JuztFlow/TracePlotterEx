@@ -1,10 +1,10 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
 
-from UI.TestData import testData
-from UI.MenuBar import MenuBar
-from UI.TraceTable import TraceTable
-from UI.TargetEdit import TargetEdit
-from UI.PingGraph import PingGraph
+from Client.TestData import testData
+from Client.MenuBar import MenuBar
+from Client.TraceTable import TraceTable
+from Client.TargetEdit import TargetEdit
+from Client.PingGraph import PingGraph
 
 class MainWindow(QMainWindow):
 

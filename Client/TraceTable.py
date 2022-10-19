@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QHeaderView
 
-from UI.Candlestick import CandlestickView
+from Client.Candlestick import CandlestickView
 
 class TraceTable(QTableWidget):
     def __init__(self):
