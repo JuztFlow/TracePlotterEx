@@ -1,6 +1,7 @@
+from cgitb import text
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem, \
-    QGraphicsItemGroup, QGraphicsRectItem, QGraphicsLineItem
-from PySide6.QtGui import QPen, QColor
+    QGraphicsItemGroup, QGraphicsRectItem, QGraphicsLineItem, QGraphicsTextItem
+from PySide6.QtGui import QPen, QColor, QFont
 from PySide6.QtCore import Qt
 
 class CandlestickView(QGraphicsView):
@@ -51,17 +52,36 @@ class Candlestick(QGraphicsItemGroup):
         avg = data["Avg"] * modifier
         self.__hookAvg = (avg, height/2)
 
+        # Set color
         backround = QGraphicsRectItem(1, 1, width, height)
-        backround.setBrush(QColor("lightgreen"))
+
+        if data["Avg"] < 100:
+            backround.setBrush(QColor(204, 255, 204))
+        elif data["Avg"] < 200:
+            backround.setBrush(QColor(255, 255, 204))
+        else:
+            backround.setBrush(QColor(255, 204, 204))
+
+
         self.addToGroup(backround)
 
         #Max To Min Bar
         self.addToGroup(QGraphicsLineItem(min, height/2, max, height/2))
 
         # Min Bar
+        textItem = QGraphicsTextItem(str(data["Min"]))
+        times = QFont("Times", 8)
+        textItem.setFont(times)
+        textItem.setPos(min - 30, height/3)
+        self.addToGroup(textItem)
         self.addToGroup(QGraphicsLineItem(min, 10, min, height-10))
 
         # Max Bar
+        textItem = QGraphicsTextItem(str(data["Max"]))
+        times = QFont("Times", 8)
+        textItem.setFont(times)
+        textItem.setPos(max + 10, height/3)
+        self.addToGroup(textItem)
         self.addToGroup(QGraphicsLineItem(max, 10, max, height-10))
         
         item = QGraphicsEllipseItem(avg-5, (height/2)-5, 10, 10)
