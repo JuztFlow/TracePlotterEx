@@ -1,17 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from Server.Process import trace_to_db
-
 import sys
 from PySide6.QtWidgets import QApplication
+
+from Server.Networking import *
 from Client.Window import MainWindow
 
 if __name__ == '__main__':
     
     # Server Test
-    trace_to_db("sau53.org")
-
+    if host_alive("sau53.org"):
+        for hop in traceroute("sau53.org"):
+            print(hop)
     # Client Test
     app = QApplication(sys.argv)
     window = MainWindow()
