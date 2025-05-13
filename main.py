@@ -1,14 +1,23 @@
 import sys
 from PySide6.QtWidgets import QApplication
-from Server.Networking import host_alive, traceroute
-from Client.Window import MainWindow
+from TracePlotterEx import target_alive, traceroute, ping
+from TracePlotterEx import MainWindow
 
 if __name__ == "__main__":
 
-    # Server Test
-    if host_alive("sau53.org"):
+    # Test 1
+    if target_alive("sau53.org"):
         for hop in traceroute("sau53.org"):
             print(hop)
+        print(f" => Ping: {ping("sau53.org")}ms")
+
+    print("")
+
+    # Test 2
+    if target_alive("141.95.72.160"):
+        for hop in traceroute("141.95.72.160"):
+            print(hop)
+        print(f" => Ping: {ping("141.95.72.160")}ms")
 
     # Client Test
     app = QApplication(sys.argv)

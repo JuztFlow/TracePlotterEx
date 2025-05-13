@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from Client.TestData import testData
-from Client.MenuBar import MenuBar
-from Client.TraceTable import TraceTable
-from Client.TargetEdit import TargetEdit
-from Client.PingGraph import PingGraph
+from TracePlotterEx.TestData import testData
+from TracePlotterEx.MenuBar import MenuBar
+from TracePlotterEx.TraceTable import TraceTable
+from TracePlotterEx.TargetEdit import TargetEdit
+from TracePlotterEx.PingGraph import PingGraph
 
 
 class MainWindow(QMainWindow):
@@ -11,7 +11,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         # UI setup
-        self.setWindowTitle("Trace Plotter")
+        self.setWindowTitle("TracePlotterEx")
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(QVBoxLayout())
 
