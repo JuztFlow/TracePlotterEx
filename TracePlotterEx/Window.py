@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout
-from TracePlotterEx.TestData import testData
+from TracePlotterEx.TestData import test_data
 from TracePlotterEx.MenuBar import MenuBar
 from TracePlotterEx.TraceTable import TraceTable
 from TracePlotterEx.TargetEdit import TargetEdit
@@ -24,15 +24,15 @@ class MainWindow(QMainWindow):
         # Add main graph
         traceTable = TraceTable()
         self.centralWidget().layout().addWidget(traceTable)
-        for item in testData:
+        for item in test_data:
             traceTable.addRow(item)
 
         pingGraph = PingGraph("1.1.1.1")
         self.centralWidget().layout().addWidget(pingGraph)
-        for index, item in enumerate(testData):
+        for index, item in enumerate(test_data):
             pingGraph.addDataPoint(index, float(item["Avg"]))
 
         pingGraph = PingGraph("1.0.0.1")
         self.centralWidget().layout().addWidget(pingGraph)
-        for index, item in enumerate(testData):
+        for index, item in enumerate(test_data):
             pingGraph.addDataPoint(index, float(item["Avg"]))

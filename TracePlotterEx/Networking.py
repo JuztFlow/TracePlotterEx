@@ -1,89 +1,119 @@
-import wmi
+import asyncio
 import ipaddress
 import socket
-import dns.resolver
+import aiodns
 import dns.reversename
-from scapy.all import IP, ICMP, sr1, get_if_addr, conf
+from scapy.all import IP, ICMP, sr, sr1, get_if_addr, conf
 
-LOCALHOST = get_if_addr(conf.iface)
-
-
-def is_ip(ip: str) -> bool:
-    try:
-        ipaddress.ip_address(ip)
-        return True
-    except ValueError:
-        return False
+loop = asyncio.get_event_loop()
+resolver = aiodns.DNSResolver(loop=loop)
 
 
-def get_windows_dns_servers():
-    dns_servers = set()
-    for nic in wmi.WMI().Win32_NetworkAdapterConfiguration(IPEnabled=True):
-        if nic.DNSServerSearchOrder:
-            dns_servers.update(nic.DNSServerSearchOrder)
-    return list(dns_servers) if dns_servers else None
+class Networking:
+    """
+    A class encapsulating common networking utilities such as ping, traceroute, checking host reachability, IP validation, and DNS lookups.
+    """
 
+    LOCALHOST = get_if_addr(conf.iface)
 
-DNS_SERVERS = get_windows_dns_servers() or ["8.8.8.8", "1.1.1.1", "8.8.4.4", "1.0.0.1"]
+    @staticmethod
+    def target_alive(target: str, timeout: float = 5, ttl: int = 128, verbose: int = 0) -> bool:
+        """
+        Invoke an ICMP echo request to determine if the target is alive.
+        """
+        return Networking.ping(target=target, timeout=timeout, ttl=ttl, verbose=verbose) is not None
 
-
-def nslookup_by_ip(dns_servers, ip):
-    reverse_name = dns.reversename.from_address(ip)
-    resolver = dns.resolver.Resolver()
-    resolver.nameservers = dns_servers
-    try:
-        answer = resolver.resolve(reverse_name, "PTR")
-        return str(answer[0])
-    except Exception:
-        return "*"
-
-
-def target_alive(target, timeout=5, ttl=128):
-    packet = IP(dst=str(target), ttl=ttl) / ICMP()
-    reply = sr1(packet, timeout=timeout, verbose=0)
-    return reply is not None
-
-
-def reached_target(target, reply_src):
-    return (target == reply_src) if is_ip(target) else (socket.gethostbyname(target) == reply_src)
-
-
-def traceroute(target, max_hops=30, timeout=1, verbose=0):
-
-    # There shall be a hop 0 that always is the localhost
-    yield {"Hop": 0, "IP": LOCALHOST, "Host": "*"}
-
-    for hop in range(1, max_hops + 1):
-
-        packet = IP(dst=target, ttl=hop) / ICMP()
+    @staticmethod
+    def ping(target: str, timeout: float = 1, ttl: int = 128, verbose: int = 0) -> float:
+        """
+        Send a single ICMP echo request and return round-trip time in milliseconds with 3 decimal places.
+        Returns None if no response.
+        """
+        packet = IP(dst=str(target), ttl=ttl) / ICMP()
         reply = sr1(packet, timeout=timeout, verbose=verbose)
+        if reply:
+            return round((reply.time - packet.sent_time) * 1000, 3)
+        return None
 
-        # If we get a timeout, we assume the hop is unreachable
-        if reply is None:
-            yield {"Hop": hop, "IP": "*", "Host": "*"}
+    @staticmethod
+    def traceroute(target: str, max_hops: int = 30, timeout: float = 1, verbose: int = 0) -> list:
+        """
+        Invokes a traceroute to the target which is then done asynchronously.
 
-        # If we get a reply and if it is the target, we are done
-        elif reached_target(target, reply.src):
-            yield {
-                "Hop": hop,
-                "IP": reply.src,
-                "Host": nslookup_by_ip(DNS_SERVERS, reply.src),
-            }
-            break
+        Returns a list of dicts with 'Hop', 'IP', and 'Host' keys, ordered by hop.
+        """
+        return loop.run_until_complete(Networking._traceroute_async(target, max_hops, timeout, verbose))
 
-        # If we get a reply and it is not the target, we continue
-        else:
-            yield {
-                "Hop": hop,
-                "IP": reply.src,
-                "Host": nslookup_by_ip(DNS_SERVERS, reply.src),
-            }
+    @staticmethod
+    async def _traceroute_async(target: str, max_hops: int = 30, timeout: float = 1, verbose: int = 0) -> list:
+        """
+        Actually performs the traceroute to the target asynchronously.
 
-    # If we reached the maximum hops or if we reached the target, we are done
-    return None
+        Returns a list of dicts with 'Hop', 'IP', and 'Host' keys, ordered by hop.
+        """
+        results = []
 
+        # Hop 0: localhost
+        results.append({"Hop": 0, "IP": Networking.LOCALHOST, "Host": "*"})
 
-def ping(target, timeout=1, verbose=0):
-    packet = IP(dst=target) / ICMP()
-    reply = sr1(packet, timeout=timeout, verbose=verbose)
-    return round((reply.time - packet.sent_time) * 1000, 3) if reply else None
+        # Build all TTL packets and send them in parallel
+        resolved_target_ip = Networking._resolve_hostname_to_ip(target)
+        packets = [IP(dst=resolved_target_ip, ttl=hop) / ICMP() for hop in range(1, max_hops + 1)]
+        answered, _ = sr(packets, timeout=timeout, verbose=verbose)
+
+        # Map TTL → source IP
+        hop_to_ip = {sent.ttl: reply.src for sent, reply in answered}
+
+        # Prepare all async DNS lookups
+        tasks = []
+        for current_hop in range(1, max_hops + 1):
+            current_hop_ip = hop_to_ip.get(current_hop)
+            if current_hop_ip is None:
+                results.append({"Hop": current_hop, "IP": "*", "Host": "*"})
+            else:
+                tasks.append(Networking._lookup_hostname_async(hop=current_hop, ip=current_hop_ip, results=results))
+                if current_hop_ip == resolved_target_ip:
+                    break
+
+        # Wait for all DNS lookups to complete
+        await asyncio.gather(*tasks)
+
+        return results
+
+    @staticmethod
+    def _resolve_hostname_to_ip(target: str) -> str:
+        """
+        Resolve hostname to IP if needed.
+        """
+        return target if Networking._is_valid_ip(target) else socket.gethostbyname(target)
+
+    @staticmethod
+    def _is_valid_ip(address: str) -> bool:
+        """
+        Check if the provided string is a valid IPv4 or IPv6 address.
+        """
+        try:
+            ipaddress.ip_address(address)
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    async def _lookup_hostname_async(hop: int, ip: str, results: list) -> None:
+        """
+        Helper function to look up hostnames asynchronously and append to results.
+        """
+        hostname = await Networking._nslookup_by_ip(ip)
+        results.append({"Hop": hop, "IP": ip, "Host": hostname if hostname else "*"})
+
+    @staticmethod
+    async def _nslookup_by_ip(ip: str) -> str:
+        """
+        Perform a reverse DNS lookup (PTR) for the given IP address using aiodns.
+        """
+        reverse_name = dns.reversename.from_address(ip)
+        try:
+            response = await resolver.query(str(reverse_name), "PTR")
+            return str(response.name)
+        except aiodns.error.DNSError:
+            return None

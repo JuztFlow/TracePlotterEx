@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QHeaderView
-from TracePlotterEx.Candlestick import CandlestickView
+from TracePlotterEx.CandlestickView import CandlestickView
 
 
 class TraceTable(QTableWidget):
