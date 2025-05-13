@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout, QLineEdit
 
+
 class TargetEdit(QWidget):
     def __init__(self):
         super().__init__()
@@ -9,4 +10,3 @@ class TargetEdit(QWidget):
 
         host = QLineEdit()
         self.layout().addWidget(host)
-
