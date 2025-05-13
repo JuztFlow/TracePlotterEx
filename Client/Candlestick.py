@@ -1,4 +1,3 @@
-from cgitb import text
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem, \
     QGraphicsItemGroup, QGraphicsRectItem, QGraphicsLineItem, QGraphicsTextItem
 from PySide6.QtGui import QPen, QColor, QFont
