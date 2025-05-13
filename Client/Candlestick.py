@@ -38,7 +38,7 @@ class CandlestickView(QGraphicsView):
         candlestick.moveBy(0, height)
         self.lastStick = candlestick
 
-    def scrollContentsBy(x, y):
+    def scrollContentsBy(self, x, y):
         pass
 
 
